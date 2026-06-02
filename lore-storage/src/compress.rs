@@ -18,9 +18,12 @@ use serde::Deserialize;
 
 use crate::Fragment;
 use crate::FragmentFlags;
+use crate::errors::NotSupported;
 
 #[error_set]
-pub enum FragmentError {}
+pub enum FragmentError {
+    NotSupported,
+}
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
@@ -534,7 +537,9 @@ fn decompress_into(
         }
         #[cfg(not(feature = "oodle"))]
         {
-            return Err(FragmentError::internal("oodle compression not supported"));
+            return Err(FragmentError::from(NotSupported {
+                operation: "encountered an Oodle compressed fragment but this client was built without Oodle support".to_string(),
+            }));
         }
     } else if (fragment.flags & FragmentFlags::PayloadCompressedZstd) != 0 {
         lore_base::lore_trace!(
@@ -568,9 +573,11 @@ fn decompress_into(
             return Err(FragmentError::internal("invalid compressed data"));
         }
     } else {
-        return Err(FragmentError::internal(
-            "unknown compression algorithm, update client",
-        ));
+        return Err(FragmentError::from(NotSupported {
+            operation:
+                "encountered a fragment with an unknown compression algorithm; update the client"
+                    .to_string(),
+        }));
     }
 
     // Safety: Decompression succeeded and wrote exactly size_content bytes.
@@ -660,7 +667,9 @@ pub fn decompress_into_slice(
         }
         #[cfg(not(feature = "oodle"))]
         {
-            return Err(FragmentError::internal("oodle compression not supported"));
+            return Err(FragmentError::from(NotSupported {
+                operation: "encountered an Oodle compressed fragment but this client was built without Oodle support".to_string(),
+            }));
         }
     } else if (fragment.flags & FragmentFlags::PayloadCompressedZstd) != 0 {
         lore_base::lore_trace!(
@@ -694,9 +703,11 @@ pub fn decompress_into_slice(
             return Err(FragmentError::internal("invalid compressed data"));
         }
     } else {
-        return Err(FragmentError::internal(
-            "unknown compression algorithm, update client",
-        ));
+        return Err(FragmentError::from(NotSupported {
+            operation:
+                "encountered a fragment with an unknown compression algorithm; update the client"
+                    .to_string(),
+        }));
     }
 
     Ok(Fragment {
@@ -805,7 +816,11 @@ fn compress_into(
         #[cfg(feature = "oodle")]
         CompressionMode::Oodle => compress_oodle_impl(fragment, payload, output_buffer),
         #[cfg(not(feature = "oodle"))]
-        CompressionMode::Oodle => Err(FragmentError::internal("oodle compression not supported")),
+        CompressionMode::Oodle => Err(FragmentError::from(NotSupported {
+            operation:
+                "Oodle compression requested but this client was built without Oodle support"
+                    .to_string(),
+        })),
         CompressionMode::NoCompression => {
             Err(FragmentError::internal("fragment compression disabled"))
         }

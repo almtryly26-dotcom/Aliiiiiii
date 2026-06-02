@@ -51,10 +51,9 @@ pub async fn read_raw(
         match store.clone().get(partition, address, match_required).await {
             Ok((fragment, payload)) => {
                 debug_assert!(
-                    {
-                        let loaded_hash =
-                            hash::hash_fragment(fragment, payload.as_ref()).unwrap_or_default();
-                        loaded_hash == address.hash
+                    match hash::hash_fragment(fragment, payload.as_ref()) {
+                        Ok(loaded_hash) => loaded_hash == address.hash,
+                        Err(_) => true,
                     },
                     "Local store loaded data failed hash validation"
                 );
@@ -93,19 +92,16 @@ pub async fn decompress_and_verify(
     let mut content_hash = address.hash;
     // Compressed is a group flag, check if any of the flags are set
     if (fragment.flags & FragmentFlags::PayloadCompressed) != 0 {
-        match compress::decompress_async(fragment, buffer.clone()).await {
-            Err(_) => {
-                return Err(StorageError::internal("failed to decompress fragment"));
-            }
-            Ok((decompressed_fragment, decompressed_buffer)) => {
-                if options.verify {
-                    content_hash = hash::hash_slice(decompressed_buffer.as_ref());
-                }
-                if options.decompress {
-                    buffer = decompressed_buffer.freeze();
-                    fragment = decompressed_fragment;
-                }
-            }
+        let (decompressed_fragment, decompressed_buffer) =
+            compress::decompress_async(fragment, buffer.clone())
+                .await
+                .forward::<StorageError>("failed to decompress fragment")?;
+        if options.verify {
+            content_hash = hash::hash_slice(decompressed_buffer.as_ref());
+        }
+        if options.decompress {
+            buffer = decompressed_buffer.freeze();
+            fragment = decompressed_fragment;
         }
     } else if options.verify {
         content_hash = hash::hash_slice(buffer.as_ref());
@@ -252,6 +248,7 @@ pub async fn load_fragment(
             Ok((fragment, buffer)) => {
                 match decompress_and_verify(fragment, buffer, address, options).await {
                     Ok((fragment, buffer)) => Ok((fragment, buffer)),
+                    Err(err) if matches!(err, StorageError::NotSupported(_)) => return Err(err),
                     Err(err) => {
                         lore_base::lore_debug!(
                             "Fragment {} failed decompression/verification: {err}",
@@ -338,6 +335,9 @@ pub async fn load_fragment(
                 return Ok((fragment, buffer));
             }
             Err(err) => {
+                if matches!(err, StorageError::NotSupported(_)) {
+                    return Err(err);
+                }
                 if heal_attempted {
                     lore_base::lore_error!(
                         "Fragment {} still corrupt after heal: {}",

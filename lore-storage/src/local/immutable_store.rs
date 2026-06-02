@@ -61,6 +61,7 @@ use crate::Partition;
 use crate::TypedBytes;
 use crate::compress;
 use crate::errors::AddressNotFound;
+use crate::errors::NotSupported;
 use crate::errors::PayloadNotFound;
 #[cfg(feature = "failure_generator")]
 use crate::errors::SlowDown;
@@ -73,7 +74,9 @@ use crate::store_types::StoreObliterateStats;
 use crate::store_types::StoreQueryResult;
 
 #[error_set]
-pub enum LocalImmutableStoreError {}
+pub enum LocalImmutableStoreError {
+    NotSupported,
+}
 
 const VALIDATE_COMPACTION: bool = false;
 
