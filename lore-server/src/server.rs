@@ -387,6 +387,24 @@ async fn launch_quinn_server(
     .await
 }
 
+/// Returns the names of the optional cargo features this server binary was
+/// compiled with. Reported through the `ServerInfo` RPC so clients and tests
+/// can detect capabilities that are only present in some builds (for example
+/// `failure_generator`, which enables fault-injection used by smoke tests).
+fn compiled_features() -> Vec<String> {
+    let mut features = Vec::new();
+    if cfg!(feature = "failure_generator") {
+        features.push("failure_generator".to_string());
+    }
+    if cfg!(feature = "oodle") {
+        features.push("oodle".to_string());
+    }
+    if cfg!(feature = "seeding") {
+        features.push("seeding".to_string());
+    }
+    features
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn launch_grpc_server(
     immutable_store: Arc<dyn ImmutableStore>,
@@ -417,10 +435,11 @@ async fn launch_grpc_server(
         lock_store.as_ref().map_or("disabled", |_| "enabled"),
     );
 
-    // Note: there are currently no relevant settings or features to return from the server info
-    // rpc, so we just pass in empty values for the time being.
+    // The settings map has no relevant entries to surface yet, so it stays empty.
+    // The features list reports the cargo features the binary was compiled with so
+    // clients and tests can detect optional capabilities (e.g. failure_generator).
     let settings_map: HashMap<String, String> = HashMap::new();
-    let features_list = vec![];
+    let features_list = compiled_features();
 
     let (cert_path, key_path, cert_chain_path) =
         if let Some(cert_settings) = grpc_settings.certificate {

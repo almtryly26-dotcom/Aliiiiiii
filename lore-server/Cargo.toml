@@ -94,6 +94,9 @@ oodle = ["lore-revision/oodle"]
 integration_tests = []
 test_random = []
 seeding = ["lore-revision/seeding"]
+# Enables fault-injection in the storage layer (e.g. LORE_MISS_FRAGMENT_WRITES).
+# Used by smoke tests that exercise missing-fragment recovery paths.
+failure_generator = ["lore-storage/failure_generator"]
 
 [[bin]]
 name = "loreserver"

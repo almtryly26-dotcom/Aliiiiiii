@@ -4,6 +4,7 @@ import logging
 
 import pytest
 
+from grpc_admin import fetch_server_features
 from lore_server import (
     _kill_server_by_pid,
     allocate_free_port,
@@ -44,8 +45,21 @@ def missing_fragments_remote_url(
     proc, log_path, log_fd = launch_lore_server(
         server_root, server_env, lore_server_executable_path
     )
+    # This is a dedicated server we launch locally on OS-allocated ports
+    # (allocate_free_port only supports loopback), so the host is always
+    # loopback for both the gRPC feature query and the yielded QUIC URL.
+    host = "127.0.0.1"
     try:
-        yield f"lore://127.0.0.1:{ports['quic']}/"
+        # LORE_MISS_FRAGMENT_WRITES is only honored when the server is built with
+        # the `failure_generator` cargo feature. Skip cleanly otherwise — without
+        # the feature the writes succeed and the test's premise doesn't hold.
+        features = fetch_server_features(f"{host}:{ports['grpc']}")
+        if "failure_generator" not in features:
+            pytest.skip(
+                "server not built with the 'failure_generator' feature "
+                "(build loreserver with --features failure_generator)"
+            )
+        yield f"lore://{host}:{ports['quic']}/"
     finally:
         _kill_server_by_pid(proc.pid, log_path, label="missing-fragments server")
         log_fd.close()
