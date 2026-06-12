@@ -2,6 +2,12 @@
 
 Welcome to the Lore documentation. The pages below cover everything from your first install through the internal design, organized into a consistent structure that helps you find what you need.
 
+## Get started
+
+- [Quickstart](tutorials/quickstart.md) — create your first Lore repository.
+- [System design](explanation/system-design.md) — how and why Lore works the way it does.
+- [FAQ](faq.md) — answers to common questions.
+
 ## Working with Lore
 
 Documentation for installing, using, and understanding Lore.

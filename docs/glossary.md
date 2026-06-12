@@ -39,6 +39,10 @@ Also see: latest, revision graph.
 
 ## C
 
+### CDC
+
+See content-defined chunking.
+
 ### Change request
 
 A change request (CR) is a proposed set of revisions submitted for peer review before merging. The Lore equivalent of a pull request in other version control systems.
@@ -54,6 +58,10 @@ Compare to: rebase, squash.
 Splitting a file into a sequence of smaller fragments, each addressed independently, so an edit re-stores only the affected fragments and any byte range can be read without materializing the whole file. Lore supports content-defined and fixed-size chunking.
 
 Also see: fragment, content-defined chunking, fixed-size chunking.
+
+### CLI
+
+A command-line interface (CLI) is the text-based way to drive Lore, through the `lore` binary and its subcommands.
 
 ### Clone
 
@@ -92,6 +100,12 @@ Also see: address.
 See change request.
 
 ## D
+
+### DAG
+
+A directed acyclic graph (DAG) is a graph with directed edges and no cycles. Lore's revision graph is a DAG.
+
+Also see: revision graph.
 
 ### Deduplication
 
@@ -340,6 +354,10 @@ For more information, see:
 Three-way merge <https://en.wikipedia.org/wiki/Merge_(version_control)>
 
 ## V
+
+### VCS
+
+A version control system (VCS) is software that records and manages changes to files over time. Lore is a VCS.
 
 ### View filter
 

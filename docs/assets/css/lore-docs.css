@@ -90,6 +90,10 @@
   --lore-critical-secondary:#fe8989;
   --lore-on-critical:       #331313;
 
+  /* Radius — lg: homepage card grid; sm: code blocks + admonitions */
+  --lore-radius-lg:         1.2rem;
+  --lore-radius-sm:         0.8rem;
+
   /* Typography */
   --md-text-font: "Inter", system-ui, -apple-system, sans-serif;
   --md-code-font: "Recursive Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -206,6 +210,15 @@
   background-color: rgba(253, 94, 94, 0.10);
 }
 
+/* Round admonitions + collapsible details to match the card grid. overflow:hidden
+   clips the tinted title bar to the rounded top corners and the body to the
+   bottom, so nothing pokes past the border radius. */
+[data-md-color-scheme="slate"] .md-typeset .admonition,
+[data-md-color-scheme="slate"] .md-typeset details {
+  border-radius: var(--lore-radius-sm);
+  overflow: hidden;
+}
+
 /* ---------- Search input ---------- */
 [data-md-color-scheme="slate"] .md-search {
   padding: .2rem .8rem;
@@ -240,6 +253,16 @@
 [data-md-color-scheme="slate"] .md-search__input::placeholder {
   color: var(--lore-fg-secondary);
   opacity: 1;
+}
+
+/* search.suggest: the autocomplete overlay must match the input's font + left
+   padding exactly, or the suggested completion won't line up under the typed
+   text. Material's defaults (0.8rem / 2.2rem) differ from our input overrides
+   above (0.7rem / 1.75rem), so re-state them here. */
+[data-md-color-scheme="slate"] .md-search__suggest {
+  font-size: 0.7rem;
+  padding-left: 1.75rem;
+  padding-right: 1rem;
 }
 
 [data-md-color-scheme="slate"] .md-search__icon {
@@ -283,6 +306,19 @@
 [data-md-color-scheme="slate"] .md-typeset code {
   border: 1px solid var(--lore-border-faint);
 }
+/* Round block code to match the card grid. (Inline `code` keeps its small
+   default radius so short spans don't become pills.) The background + border
+   sit on `pre > code`, but Material pins that element's top corners to 0; the
+   coincident `.highlight` wrapper has no such override, so clipping it with
+   overflow:hidden rounds all four corners. Rounding `pre > code` too keeps its
+   1px border natively round under the clip. */
+[data-md-color-scheme="slate"] .md-typeset .highlight {
+  border-radius: var(--lore-radius-sm);
+  overflow: hidden;
+}
+[data-md-color-scheme="slate"] .md-typeset pre > code {
+  border-radius: var(--lore-radius-sm);
+}
 [data-md-color-scheme="slate"] .md-typeset table:not([class]) {
   border: 1px solid var(--lore-border-subtle);
 }
@@ -305,7 +341,7 @@
 [data-md-color-scheme="slate"] .md-typeset .card-grid > ul > li {
   background-color: var(--lore-fill-faint);
   border: 1px solid var(--lore-border-faint);
-  border-radius: 1.2rem;
+  border-radius: var(--lore-radius-lg);
   padding: 1rem;
   margin: 0;
   display: flex;
@@ -334,8 +370,12 @@
 }
 
 /* ---------- Layout overrides ---------- */
+/* Fixed-length stop (px, not %) so the green band is the same height on every
+   page. Percentages here are relative to .md-main, whose height tracks page
+   content — so a % stop made the band scale with page length (a few hundred px
+   on short pages, many thousands on long ones). 200px ≈ the homepage's band. */
 [data-md-color-scheme="slate"] .md-main {
-  background: linear-gradient(to bottom, rgb(38, 57, 43) 0%, rgb(16, 16, 20) 20%);
+  background: linear-gradient(to bottom, rgb(38, 57, 43) 0, rgb(16, 16, 20) 200px);
 }
 
 /* Disable the scroll-driven title swap — always show the site title. */
@@ -364,6 +404,30 @@
   background-color: #18181c;
 }
 
+/* On desktop the sidebars are inline columns sitting over the .md-main gradient
+   (defined above); make them transparent so the background flows continuously
+   across the left nav, content, and right TOC. Below this breakpoint the sidebar
+   is a fixed slide-out drawer, which must keep its solid fill to stay legible. */
+@media screen and (min-width: 76.25em) {
+  [data-md-color-scheme="slate"] .md-sidebar {
+    background-color: transparent;
+  }
+}
+
+/* Align the secondary (right TOC) sidebar's breakpoint with the primary (left
+   nav). Material reveals the secondary sidebar at 60em but only makes the primary
+   inline at 76.25em, so between those widths the right TOC shows while the left is
+   still a hamburger drawer — and the drawer separately includes the integrated
+   TOC, duplicating it. Hide the secondary sidebar until 76.25em so both columns
+   appear together; below that, the TOC lives in the drawer. The `:not([hidden])`
+   selector matches Material's own (0,2,0) specificity to win in the overlap zone. */
+@media screen and (max-width: 76.234375em) {
+  .md-sidebar--secondary,
+  .md-sidebar--secondary:not([hidden]) {
+    display: none;
+  }
+}
+
 .md-nav {
   font-size: 0.6rem;
 }
@@ -376,6 +440,61 @@
 [dir="ltr"] .md-nav--primary .md-nav__item > .md-nav__link.md-nav__link--active code {
   color: #ffffff;
   font-weight: bold;
+}
+
+/* ---------- Left-nav grouping ----------
+   Material has no headerless divider for the sidebar, so the visual grouping is
+   done here in CSS rather than by restructuring the nav (which would add a
+   nesting level and change breadcrumbs/URLs). The primary nav's top-level order
+   is fixed in docs/.pages: Docs homepage, Quickstart, Technical design, FAQ,
+   then the folder sections (Tutorials … Developing), then the trailing Glossary.
+   We add a gap + a small "Browse by type" label above the folder group, and a
+   gap above Glossary. Every selector is scoped to the top-level list
+   (`> .md-nav__list >`) so nested folder contents are untouched, and applies to
+   both the desktop sidebar and the mobile drawer (same .md-nav--primary list). */
+
+/* Each top-level folder is an `--nested` item; only the FIRST should carry the
+   gap + heading. CSS has no "first of class" selector, so set it on every nested
+   item, then reset on any nested item that directly follows another — i.e. all
+   folders except the first, since they're consecutive siblings (FAQ, a plain
+   item, precedes the first folder and so doesn't trigger the reset). */
+.md-nav--primary > .md-nav__list > .md-nav__item--nested {
+  margin-top: 1.4rem;
+}
+.md-nav--primary > .md-nav__list > .md-nav__item--nested::before {
+  content: "Browse by type";
+  display: block;
+  margin-bottom: 0.35rem;
+  padding: 0 0.6rem;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-default-fg-color--lighter);
+}
+.md-nav--primary > .md-nav__list > .md-nav__item--nested + .md-nav__item--nested {
+  margin-top: 0;
+}
+.md-nav--primary > .md-nav__list > .md-nav__item--nested + .md-nav__item--nested::before {
+  content: none;
+}
+
+/* Gap above the trailing Glossary entry (separates it from Developing). Glossary
+   is pinned last in docs/.pages, so :last-child reliably targets it on every
+   page, including the Glossary page itself. */
+.md-nav--primary > .md-nav__list > .md-nav__item:last-child {
+  margin-top: 1.4rem;
+}
+
+/* The 0.6rem inset above keeps the label aligned with the mobile drawer's links,
+   which carry 0.8rem of left padding. On desktop the inline-sidebar links have no
+   left padding (their indent comes from the list), so that same inset pushes the
+   label ~0.6rem to the right of them. Zero it at the desktop breakpoint (where the
+   sidebar goes inline) so the label sits flush with the links. */
+@media screen and (min-width: 76.25em) {
+  .md-nav--primary > .md-nav__list > .md-nav__item--nested::before {
+    padding-left: 0;
+  }
 }
 
 [data-md-color-scheme="slate"] .md-nav--primary .md-nav__title,
@@ -447,6 +566,15 @@
     box-shadow: none;
   }
 
+  /* With the inline-expand reset above, the nav is one tall block instead of
+     Material's per-level scrolling panels. Material disables scrolling on the
+     drawer's outer scroll wrap on mobile (overflow: hidden) because it expects
+     those panels to scroll — so nothing scrolls and only the page behind moves.
+     Restore scrolling on the wrap so the open drawer scrolls as a single column. */
+  .md-sidebar--primary .md-sidebar__scrollwrap {
+    overflow-y: auto;
+  }
+
   /* Sub-navs that follow a toggle are collapsed by default; show on :checked. */
   .md-nav--primary .md-nav__toggle ~ .md-nav {
     display: none;
@@ -477,8 +605,13 @@
     display: none;
   }
 
-  /* Hide the duplicate active-page label (it exists only to toggle the TOC). */
-  .md-nav--primary > .md-nav__list > .md-nav__item--active > .md-nav__link[for="__toc"] {
+  /* Hide the duplicate active-page label (it exists only to toggle the TOC).
+     Match the active page leaf at any nesting depth — pages inside a section
+     (e.g. Reference › a page) are not direct children of the top-level list, so
+     a `> … >` chain would miss them and leave the title rendered twice. Only the
+     page leaf carries a label[for="__toc"]; section toggles use for="__nav_N",
+     so this never hides a section label. */
+  .md-nav--primary .md-nav__item--active > .md-nav__link[for="__toc"] {
     display: none;
   }
 

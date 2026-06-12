@@ -1,9 +1,12 @@
 nav:
-  - README.md
+  - Docs homepage: README.md
+  - Quickstart: tutorials/quickstart/
+  - System design: explanation/system-design/
+  - FAQ: faq.md
   - tutorials
   - how-to
   - explanation
   - reference
-  - faq.md
   - developing
   - ...
+  - glossary.md
