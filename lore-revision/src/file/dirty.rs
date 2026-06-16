@@ -251,15 +251,17 @@ async fn dirty_path(
 
         stats.modify_count.fetch_add(1, Ordering::Relaxed);
     } else if exists_on_disk {
-        // File on disk + not in revision -> Add
-        lore_trace!("Dirty add: {}", relative_path.as_str());
-        dirty_add(
-            repository.clone(),
-            state_staged.clone(),
-            relative_path,
-            stats.clone(),
-        )
-        .await?;
+        // Skip when already tracked so a repeated dirty doesn't duplicate the node.
+        if staged_link.is_none() {
+            lore_trace!("Dirty add: {}", relative_path.as_str());
+            dirty_add(
+                repository.clone(),
+                state_staged.clone(),
+                relative_path,
+                stats.clone(),
+            )
+            .await?;
+        }
     } else if in_current_revision {
         // Not on disk + in revision -> Delete
         lore_trace!("Dirty delete: {}", relative_path.as_str());

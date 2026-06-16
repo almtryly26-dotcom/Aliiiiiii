@@ -2466,3 +2466,58 @@ def test_dirty_partial_commit_keeps_uncommitted_adds(new_lore_repo):
         assert entry["flagDirty"] is True, (
             f"{p} should remain dirty after --check-dirty: {entry}"
         )
+
+
+@pytest.mark.smoke
+def test_dirty_add_repeated_is_idempotent(new_lore_repo):
+    """Marking the same added files dirty twice reports the same nodes both
+    times, in plain status and under --check-dirty.
+
+    A base revision commits a directory `existing/`. Three new files are then
+    created -- one in the repository root, one in a brand-new top-level
+    subdirectory, and one in a brand-new subdirectory of the committed
+    `existing/` directory -- and flagged with the dirty API. Plain `status` (no
+    scan, no check-dirty) and `status --check-dirty` must each report exactly
+    those three as unstaged dirty adds, with no duplicated node. Flagging the
+    same files dirty a second time must not change either report.
+    """
+    repo: Lore = new_lore_repo()
+
+    repo.write_files({"existing/base.bin": os.urandom(64)})
+    repo.stage(scan=True, offline=True)
+    repo.commit(offline=True)
+
+    added = [
+        "root_add.bin",
+        "new_dir/added.bin",
+        "existing/new_sub/added.bin",
+    ]
+    repo.write_files({name: os.urandom(64) for name in added})
+    expected = {to_posix(p) for p in added}
+
+    def check(label: str, **kwargs) -> None:
+        entries = get_status_files(repo, **kwargs)
+        files = [e for e in entries if e.get("type") == "file"]
+        by_path = {to_posix(e["path"]): e for e in files}
+        assert len(files) == len(by_path), (
+            f"{label}: duplicate file nodes reported: "
+            f"{sorted(to_posix(e['path']) for e in files)}"
+        )
+        assert set(by_path) == expected, f"{label}: wrong file set, got {sorted(by_path)}"
+        for p in expected:
+            entry = by_path[p]
+            assert entry["action"] == "add", f"{label}: {p} should be add: {entry}"
+            assert entry["flagDirty"] is True, f"{label}: {p} should be dirty: {entry}"
+            assert entry["flagStaged"] is False, f"{label}: {p} should be unstaged: {entry}"
+        all_paths = [to_posix(e["path"]) for e in entries]
+        assert len(all_paths) == len(set(all_paths)), (
+            f"{label}: duplicate nodes reported: {sorted(all_paths)}"
+        )
+
+    repo.dirty(added, offline=True)
+    check("first dirty, plain status")
+    check("first dirty, --check-dirty", check_dirty=True)
+
+    repo.dirty(added, offline=True)
+    check("second dirty, plain status")
+    check("second dirty, --check-dirty", check_dirty=True)
